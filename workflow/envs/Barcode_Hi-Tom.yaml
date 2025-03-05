@@ -1,0 +1,9 @@
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - bioconda::crispresso2
+  - python=3.8
+  - bioconda::seqkit
+  - conda-forge::flash
