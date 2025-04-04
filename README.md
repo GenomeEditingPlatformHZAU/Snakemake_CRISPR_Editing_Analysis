@@ -1,5 +1,7 @@
 # Snakemake workflow: Snakemake CRISPR Barcode/HiTom Editing Analysis
 
+![pngwing com](https://github.com/user-attachments/assets/17f90df0-c033-4b04-883f-6d8f981066ba)
+
 A snakemake workflow for CRISPR barcode designer and analysis of Illimina sequences pair-end reads (based on [CRISPResso2](https://github.com/pinellolab/CRISPResso2)).
 
 [![Snakemake](https://img.shields.io/badge/snakemake-≥5.2.1-brightgreen.svg)](https://snakemake.bitbucket.io)
