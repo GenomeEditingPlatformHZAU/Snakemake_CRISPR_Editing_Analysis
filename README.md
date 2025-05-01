@@ -36,7 +36,7 @@ conda activate snakemake
 
 Then git clone this repository using follows command 👇
 
-    git clone https://github.com/tiramisutes/Snakemake_CRISPR_Barcode_HiTom_Analysis.git
+    git clone https://github.com/GenomeEditingPlatformHZAU/Snakemake_CRISPR_Editing_Analysis.git
 
 ### Step 2: Prepare data
 - Hi-Tom返回数据已经按照样品进行fq文件的分隔，所以只需指定样品名称对应的扩增序列和sgRNA序列即可；
