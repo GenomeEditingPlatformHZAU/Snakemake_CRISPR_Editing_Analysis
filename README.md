@@ -123,3 +123,8 @@ An example (using some trivial test data) can be seen [here](https://cdn.rawgit.
 如果是双靶标且靶标位置分别在双端reads的两端序列，则分别按照单靶标跑，此时在`config.yaml`中设置参数`badreads: true`即可。
 
 如果是单靶标则用修改后的扩增序列跑相应reads。
+
+## 基因编辑检测
+![](docs/gbp1.PNG)
+![](docs/gbp2.PNG)
+![](docs/gbp3.PNG)
