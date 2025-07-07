@@ -13,7 +13,7 @@ A snakemake workflow for CRISPR barcode designer and analysis of Illimina sequen
 
 * Zhongping Xu (@hopetogy), http://tiramisutes.github.io/
 
-## Usage
+## 一、Usage
 
 ---
 
@@ -106,7 +106,7 @@ After successful execution, you can create a self-contained interactive HTML rep
 This report can, e.g., be forwarded to your collaborators.
 An example (using some trivial test data) can be seen [here](https://cdn.rawgit.com/snakemake-workflows/rna-seq-star-deseq2/master/.test/report.html).
 
-## FAQ
+## 二、FAQ
 ### 1. ERROR: Error: No alignments were found
 即没有测序reads比对到扩增序列，首先确认扩增序列总长度是否小于等于236 bp。
 
@@ -124,7 +124,9 @@ An example (using some trivial test data) can be seen [here](https://cdn.rawgit.
 
 如果是单靶标则用修改后的扩增序列跑相应reads。
 
-## 基因编辑检测
+---
+
+## 三、基因编辑检测
 ![](docs/gbp1.PNG)
 ![](docs/gbp2.PNG)
 ![](docs/gbp3.PNG)
