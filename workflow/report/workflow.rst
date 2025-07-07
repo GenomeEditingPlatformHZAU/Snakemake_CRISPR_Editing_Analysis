@@ -1,0 +1,1 @@
+运用 `CRISPResso2 <https://github.com/pinellolab/CRISPResso2>`_  进行 CRISPR基因编辑结果分析。

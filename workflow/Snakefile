@@ -1,0 +1,228 @@
+import os
+import re
+import sys
+import yaml
+import pathlib
+from typing import List
+import pandas as pd
+from colorama import Fore
+from snakemake.utils import validate, min_version
+##### set minimum snakemake version #####
+min_version("5.15")
+
+
+#======================================================
+###### cluster directory
+#======================================================
+logs = pathlib.Path("./logs/cluster")
+
+if logs.is_dir():
+    pass
+    #print("#"*40 + "\n" + "        The logs exist." + "\n" + "#"*40 + "\n")
+else:
+    #print("#"*40 + "\n" + "Now, create the logs directory." + "\n")
+    os.system('mkdir -p ./logs/cluster')
+    #print("#"*40 + "\n")
+
+#======================================================
+###### Config files and sample sheets
+#======================================================
+
+configfile: "config/config.yaml"
+validate(config, schema="../schemas/config.schema.yaml")
+
+HiTom_samples = list(pd.read_table("Resources/HiTom/"+config["DATA"]["HiTom"]["description"], header=None, sep="\t", dtype=str).iloc[:,0]) if config["module"]["HiTom"]["CRISPR"] or config["module"]["HiTom"]["ABE"] else []
+
+Barcode_samples = sorted(list(set(pd.read_table("Resources/Barcode/"+config["DATA"]["Barcode"]["description"], header=None, sep="\t", dtype=str).iloc[:,0]))) if config["module"]["Barcode"]["CRISPR"] or config["module"]["Barcode"]["cpf1"] or config["module"]["Barcode"]["ABE"] or config["module"]["Barcode"]["CBE"] or config["module"]["Barcode"]["PE"] else []
+
+#======================================================
+##### Wildcard constraints
+#======================================================
+wildcard_constraints:
+    HiTom_sample="|".join(HiTom_samples),
+    Barcode_sample="|".join(Barcode_samples)
+#======================================================
+##### Helper functions
+#======================================================
+## check if input fastq is correct 
+fqs = config["DATA"]["Barcode"]["fqs"]
+if fqs[0] == fqs[1]:
+    print("##"*60 + '\033[31m' + "\nThe input fqs files are:\nfq1: " + fqs[0] + "\nfq2: " + fqs[1] + "\nError: file name of fq1 is same with fq2. Please to check whether the input fqs files are same in <config.yaml> file " + '\033[0m' + " 😂\n" + "##"*60)
+    sys.exit()
+else:
+    print("##"*60 + '\033[32m' + "\nThe input fqs files are:\nfq1: " + fqs[0] + "\nfq2: " + fqs[1] + "\nThe input fqs files are Right. Now, we can go on. Good luck " + '\033[0m' + " 😄\n" + "##"*60)
+
+## check No English string in primer and description files. https://www.jianshu.com/p/04224ee9aecb
+def isEnglish(mystr):
+    return mystr.isascii()
+
+def loop_ascii_string(mystr):
+    ascii_strs = []
+    hasAscii = False
+    for ms in str(mystr):
+        if not isEnglish(ms):
+            ascii_strs.append(ms)
+            hasAscii = True
+        else:
+            ascii_strs.append(" ")
+    if hasAscii:
+        print("==" * 50)
+        print('\033[31m' + "检测数据：", mystr + '\033[0m')
+        print('\033[31m' + "异常字符：","".join(ascii_strs)  + '\033[0m')
+        print("==" * 50)
+        sys.exit()
+
+def check_ascii_input_df(input_file):
+    mydf = pd.read_table(input_file, header = None, sep = "\t")
+    for row_num in range(len(mydf)):
+        row_data = mydf.loc[[row_num]].values.tolist()[0]
+        for mstr in row_data:
+            loop_ascii_string(mstr)
+    print("##"*60 + '\033[32m' + "\nThe input [" + input_file + "] file are right and no find No-Ascii string" + '\033[0m' + " 😄\n" + "##"*60)
+
+check_ascii_input_df("Resources/Barcode/"+config["DATA"]["Barcode"]["BarcodePrimer"])
+check_ascii_input_df("Resources/Barcode/"+config["DATA"]["Barcode"]["description"])
+
+## check No Blank Space in primer and description files
+def haveBlankSpace(mystr):
+    return " " in mystr
+
+def loop_BlankSpace_string(mystr):
+    blank_strs = []
+    hasblank = False
+    for ms in str(mystr):
+        if haveBlankSpace(ms):
+            blank_strs.append(ms)
+            hasblank = True
+        else:
+            blank_strs.append(" ")
+    if hasblank:
+        print("==" * 50)
+        print('\033[31m' + "Find Blank Space in:", mystr + '\033[0m')
+        print("==" * 50)
+        sys.exit()
+
+def check_BlankSpace_input_df(input_file):
+    mydf = pd.read_table(input_file, header = None, sep = "\t")
+    for row_num in range(len(mydf)):
+        row_data = mydf.loc[[row_num]].values.tolist()[0]
+        for mstr in row_data:
+            loop_BlankSpace_string(mstr)
+    print("##"*60 + '\033[32m' + "\nThe input [" + input_file + "] file are right and no find Blank Space" + '\033[0m' + " 😄\n" + "##"*60)
+
+check_BlankSpace_input_df("Resources/Barcode/"+config["DATA"]["Barcode"]["BarcodePrimer"])
+check_BlankSpace_input_df("Resources/Barcode/"+config["DATA"]["Barcode"]["description"])
+
+## check column number in primer file
+if len(pd.read_table("Resources/Barcode/"+config["DATA"]["Barcode"]["BarcodePrimer"], header = None, sep = "\t").axes[1]) != 2:
+    print("##"*60 + '\033[31m' + "\nThe input primer file [" + "Resources/Barcode/"+config["DATA"]["Barcode"]["BarcodePrimer"] + "] have more than two columns, please to check" + '\033[0m' + " 😂\n" + "##"*60)
+    sys.exit()
+else:
+    print("##"*60 + '\033[32m' + "\nThe input primer file [" + "Resources/Barcode/"+config["DATA"]["Barcode"]["BarcodePrimer"] + "] have right two columns" + '\033[0m' + " 😄\n" + "##"*60)
+
+## check if bad data is used to run
+if config["badreads"]:
+    print(Fore.RED + "##"*60 + '\nThe badreads module is run!!! Please check and set the [badreads] in config.yaml file.\n' + "##"*60)
+
+## check sgrna length
+def check_sgrna_lengths(file_path, system='Cas9'):
+    expected_length = 20 if system.lower() == 'cas9' else 23 if system.lower() == 'cpf1' else None
+    if expected_length is None:
+        print("Error: Unsupported system. Use 'Cas9' or 'Cpf1'.")
+        sys.exit(1)
+
+    with open(file_path, 'r') as f:
+        for line_num, line in enumerate(f, 1):
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split('\t')
+            if len(parts) < 3:
+                print("##"*60 + '\033[32m' + f"\nError on line {line_num}: Less than 3 columns." + '\033[0m' + " 😂\n" + "##"*60)
+                sys.exit(1)
+            sgrnas = parts[2].split(',')
+            for sgrna in sgrnas:
+                if len(sgrna.strip()) != expected_length:
+                    print("##"*60 + '\033[32m' + f"\nError on line {line_num}: sgRNA '{sgrna}' has length {len(sgrna.strip())}, expected {expected_length} for {system}." + '\033[0m' + " 😂\n" + "##"*60)
+                    sys.exit(1)
+    print("##"*60 + '\033[32m' + "\nAll sgRNAs are valid in " + config["DATA"]["Barcode"]["description"] + "file." + '\033[0m' + " 😄\n" + "##"*60)
+
+if config["module"]["Barcode"]["cpf1"]:
+    check_sgrna_lengths("Resources/Barcode/" + config["DATA"]["Barcode"]["description"], "Cpf1")
+else:
+    check_sgrna_lengths("Resources/Barcode/" + config["DATA"]["Barcode"]["description"], "Cas9")
+
+## dos2unix + 补全结尾换行符
+def fix_txt_dos2unix_pure(filepath):
+    print('\033[32m' + f"[INFO] Processing file: {filepath}" + '\033[0m')
+    try:
+        # Step 1: 读取并替换 \r\n 为 \n（即 dos2unix 功能）
+        with open(filepath, 'rb') as f:
+            content = f.read().replace(b'\r\n', b'\n')
+        # Step 2: 检查是否缺少结尾换行符
+        if not content.endswith(b'\n'):
+            content += b'\n'
+            print('\033[32m' + f"[INFO] Appended missing newline at EOF." + '\033[0m')
+        else:
+            print('\033[32m' + f"[INFO] File already ends with a newline." + '\033[0m')
+        # Step 3: 写回文件（覆盖原始文件）
+        with open(filepath, 'wb') as f:
+            f.write(content)
+        print('\033[32m' + f"[INFO] File '{filepath}' successfully converted to UNIX format." + '\033[0m')
+    except FileNotFoundError:
+        print('\033[31m' + f"[ERROR] File not found: {filepath}" + '\033[0m')
+    except PermissionError:
+        print('\033[31m' + f"[ERROR] Permission denied: {filepath}" + '\033[0m')
+    except Exception as e:
+        print('\033[31m' + f"[ERROR] Unexpected error: {e}" + '\033[0m')
+
+fix_txt_dos2unix_pure("Resources/Barcode/{}".format(config["DATA"]["Barcode"]["description"]))
+print("##"*60 + "\n" + "##"*60)
+fix_txt_dos2unix_pure("Resources/Barcode/{}".format(config["DATA"]["Barcode"]["BarcodePrimer"]))
+print("##"*60 + "\n")
+## 
+#======================================================
+###### target rules
+#======================================================
+
+rule all:
+    input:
+        ## Barcode Design
+        "results/Barcode_Primer/ER_TM_{}_barcode.txt".format(config["prefix"]) if config["module"]["Barcode_Design"] else [],
+        ## HiTom
+        "results/{}_HiTom_single/All_{}_CRISPR_samples_HiTom.txt".format(config["prefix"], config["prefix"]) if config["module"]["HiTom"]["CRISPR"] and config["badreads"] else [],
+        "results/{}_HiTom_single/All_{}_ABE_samples_HiTom.txt".format(config["prefix"], config["prefix"]) if config["module"]["HiTom"]["ABE"] and config["badreads"] else [],
+        "results/{}_HiTom_pair/All_{}_CRISPR_samples_HiTom.txt".format(config["prefix"], config["prefix"]) if config["module"]["HiTom"]["CRISPR"] and not config["badreads"] else [],
+        "results/{}_HiTom_pair/All_{}_ABE_samples_HiTom.txt".format(config["prefix"], config["prefix"]) if config["module"]["HiTom"]["ABE"] and not config["badreads"] else [],
+        ## Barcode
+        "results/{}_Barcode_single_Results/All_CRISPR_samples_Barcode.txt".format(config["prefix"]) if config["module"]["Barcode"]["CRISPR"] and config["badreads"] else [],
+        "results/{}_Barcode_single_Results/All_cpf1_samples_Barcode.txt".format(config["prefix"]) if config["module"]["Barcode"]["cpf1"] and config["badreads"] else [],
+        "results/{}_Barcode_single_Results/All_ABE_samples_Barcode.txt".format(config["prefix"]) if config["module"]["Barcode"]["ABE"] and config["badreads"] else [],
+        "results/{}_Barcode_single_Results/All_CBE_samples_Barcode.txt".format(config["prefix"]) if config["module"]["Barcode"]["CBE"] and config["badreads"] else [],
+        "results/{}_Barcode_pair_Results/All_CRISPR_samples_Barcode.txt".format(config["prefix"]) if config["module"]["Barcode"]["CRISPR"] and not config["badreads"] else [],
+        "results/{}_Barcode_pair_Results/All_cpf1_samples_Barcode.txt".format(config["prefix"]) if config["module"]["Barcode"]["cpf1"] and not config["badreads"] else [],
+        "results/{}_Barcode_pair_Results/All_ABE_samples_Barcode.txt".format(config["prefix"]) if config["module"]["Barcode"]["ABE"] and not config["badreads"] else [],
+        "results/{}_Barcode_pair_Results/All_CBE_samples_Barcode.txt".format(config["prefix"]) if config["module"]["Barcode"]["CBE"] and not config["badreads"] else [],
+        "results/{}_Barcode_pair_Results/All_PE_samples_Barcode.txt".format(config["prefix"]) if config["module"]["Barcode"]["PE"] and not config["badreads"] else []
+            
+
+
+##### setup singularity #####
+
+# this container defines the underlying OS for each job when using the workflow
+# with --use-conda --use-singularity
+singularity: "docker://continuumio/miniconda3"
+
+
+##### setup report #####
+
+report: "report/workflow.rst"
+
+## select which rule to run
+include: "rules/Barcode_Design.smk"
+if config["badreads"]:
+    include: "rules/Barcode_single.smk"
+    include: "rules/Hi-Tom_single.smk"
+else:
+    include: "rules/Hi-Tom.smk"
+    include: "rules/Barcode.smk"

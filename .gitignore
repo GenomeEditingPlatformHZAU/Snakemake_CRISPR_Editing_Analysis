@@ -1,0 +1,10 @@
+.snakemake
+Resources
+results
+!logs/cluster
+logs/cluster/*.err
+logs/cluster/*.out
+logs/*
+*_report.html
+*.tar.gz
+.vscode

@@ -1,0 +1,95 @@
+# path to output root directory
+workdir: "/public/home/zpxu/Bohou/CRISPR/Snakemake_CRISPR_Barcode_HiTom_Analysis"
+# prefix of output (based on the file name in DATA.reads)
+# HiTom运行模式时对文件名称有严格要求[prefix], [reads/fqs] and [descriptionsa] 三个参数的名称前缀必须保持一致，且[prefix]去掉-Split, 而Barcode运行模式可不做要求
+# prefix: "SY13567-USR-26749"
+prefix: "XUfanshu"
+zaiti: "GhCas9"
+
+# All the data place in <Resources> directory.
+# 如果是Barcode测序结果可忽略所有的HiTom相关设置, 反之亦然
+DATA:
+  HiTom:
+    ### Data for Hi-Tom reads，存放于<Resources/HiTom>目录下
+    # 测序数据文件必须按照如下命名规程：上述指定的前缀prefix-样本名称-R1.fq，例如SY207-USR-633-340-R1.fq和SY207-USR-633-340-R2.fq
+    # 且该样品名称必须与下面description文件中的第一列名称完全一致
+    reads: "SY13567-USR-26749-Split.tar.gz"
+    # If badreads set to true, also provide file SY207-USR-633-Split.txt_sgRNA1 and SY207-USR-633-Split.txt_sgRNA2 for run 单端reads模式，但是下面的description参数不做修改，程序会自动添加_sgRNA1和_sgRNA1后缀。
+    # 即准备 SY207-USR-633-Split.txt_sgRNA1和SY207-USR-633-Split.txt_sgRNA2两个文件，但description仍然设置为 <SY207-USR-633-Split.txt>。
+    # SY207-USR-633-Split.txt_sgRNA2 的扩增序列和sgRNA序列进行反向互补
+    description: "SY13567-USR-26749-Split.txt"
+  Barcode:
+    ### Data for barcodes sequences，存放于<Resources/Barcode>目录下
+    fqs:
+      - zmx_1.fq.gz
+      - zmx_2.fq.gz
+    ######################################################## Description File ####################################################
+    # 所有序列都必须是大写字母, 不能有小写
+    # 第一列为样品名称，第二列为扩增序列，第三列为sgRNA序列; [第四列为A亚基因组扩增序列, 第五列为A亚基因组序列特征, 第六列为D亚基因组扩增序列, 第七列为D亚基因组序列特征; 此处的序列特征即第二列扩增序列区间内能区分A和D亚基因组的一小段特异性序列; 若不想区分AD亚基因组, 而仅需要计算sgRNA特异的A或D亚基因组编辑, 则仅提供第四列为对应的特征序列即可;]
+    # 区分亚基因组时若有混合不需要区分的, 则其他列填NA
+    # 若为单端模式运行，则第四和第五列分别对应反向序列 (测序文件的R2序列) 的扩增序列和对应sgRNA (不包括PAM) ,即此时第二和第三列跑R1的序列, 第四和第五列跑R2的序列; 当需要区分AD亚基因组时按照双端模式描述依次在第六列开始提供R1(第二列)和R2(第四列)对应的特征序列即可; 
+    # 对于第三列的sgRNA序列, 同一扩增区域有多个sgRNA时, 在第三列用逗号分隔 (不包括PAM, 可以是任意数量个sgRNA, 一定要是20+NGG这样的方向, 即负链的sgRNA进行反向互补, 否则剪切位点的选择会出错, 对应的第二列扩增序列可以反向互补到正链, 也可以不反向互补到正链);
+    # 如果有96个PCR孔则需96行
+    # 若为PE，则该文件需要至少4列，依次为:
+    #         第一列: 样品名称
+    #         第二列: 扩增序列, 即上下游引物扩增区域
+    #         第三列: 需要编辑的序列, 即突变后序列, 不是原基因组序列 (长度不定, 序列包括RT(包含突变后位点)+PBS, 方向为5'->3', 该序列反向互补后可在第二列的模版中找到), PE载体上的RT+PBS反向互补序列
+    #         第四列: pegRNA_spacer sgRNA (20bp+PAM形式的序列) (去掉PAM, 方向为5'->3'; 序列是模版序列的一部分), 与第二列的扩增序列在同一条链
+    #         第五列: Nicking sgRNA序列, 方向同第四列, 可选 (当没有时只准备四列即可)
+    description: "zmx_description.txt"
+    ######################################################## Primer File #########################################################
+    # 如果Barcode对应的Primer是外部生成的，请指定文件名称，并存放于<Resources/Barcode>目录下，并且设置下面的 Barcode_Design: false
+    # 该文件中的格式为：<样品名称-F\tab5'到3'方向引物序列>，且第一列样品名称必须和Barcode下的对应description指定文件的第一列样品名称完全相同
+    # A1-F  gcttGCGTtggagtgagtacggtgtgcAAAGTATGCCCCTTATGGACCCT
+    # A1-R  ctgtGCGTtgagttggatgctggatggTCCTCATCCCATTGTTCATTTCT
+    # 如果有96个PCR孔则需96X2行
+    BarcodePrimer: "zmx_primer.txt"
+
+
+params:
+  ####################################################### Barcode设计需要参数 ######################################################
+  # The base primer of Forward from 5' to 3'
+  primerF: "AACTCACTGTGGCTCTTC"
+  # The base primer of Reverse from 5' to 3'
+  primerR: "CACTCTCCGACCGTTTC"
+  # The desired number of bases in barcode
+  length: 7
+  # The number of barcodes (Primer Pairs) (default is length x 5)
+  total: 40
+  # The minimum number of different bases between barcodes (default is length/2, i.e. 7->3, 4->2)
+  minimum_dif: 3
+  ###################################################### 编辑结果检测需要参数 #######################################################
+  # Additional parameters set to run CRISPResso
+  ## 双端模式运行方式：先将下机测序数据根据重叠进行拼接 (flash) ，然后根据barcode信息提取样品，后续CRISPResso运行相当于是输入的单端测序数据 (即只需要指定-r1) 
+  ## --default_min_aln_score默认60%相似性即认为测序reads比对到扩增序列，此时可察看确认是否测序reas前面有太多的接头序列，造成比对相似值小于60%，特别是单端reads模式跑容易出现这种情况。
+  ## --min_paired_end_reads_overlap，CRISPResso指定-r1和-r2时可使用
+  ## --plot_window_size 增加9.Alleles_frequency_table_around_sgRNA_XX.png图片绘图序列长度，默认是剪切点左右各20bp
+  ## --min_frequency_alleles_around_cut_to_plot 增加9.Alleles_frequency_table_around_sgRNA_XX.png图片绘图序列百分比，默认是剪切点左右各0.2，即小于0.2%的将不显示
+  CRISPResso: "--min_frequency_alleles_around_cut_to_plot 1"
+  ## 若扩增长度过长，则会造成out.extendedFrags.fastq 重叠reads数目少，可设置 --min-overlap (默认10bp) 参数进行一定的拯救; 若完全没有重叠则只能进行单端模式运行, 此时不需要设置该参数, 程序会自动判断运行
+  flash: ""
+  ## 若扩增序列加上两端barcode后仍小于150bp, 则flash根据重叠拼接R1和R2时会出错，此时不需要flash拼接, 跳过flash步骤直接将R1和R2合并后运行Barcode.smk的后续步骤即可, 此时badreads参数不需要设置
+  #skip_flash: true     取消该参数，自动判断
+  # 是否对编辑结果的检测区分A和D亚基因组, 若设置为true则区分, 此时根据上面 DATA --> Barcode 中的描述准备 description 文件
+  differentiation_subgenomes: false
+#########################################################################################################################################
+
+
+# Analysis data type
+module:
+  Barcode_Design: false
+  HiTom:
+    CRISPR: false
+    ABE: false
+  Barcode:
+    CRISPR: true
+    cpf1: false
+    ABE: false
+    CBE: false
+    PE: false
+
+
+# 默认进行双端reads模式跑，如果扩增序列长度大于236 bp或双端reads模式跑效果不好，设置此参数为true。 
+# 此时description文件应该有5列，第一列是样品名称，第二列和第三列的第一个sgRNA的扩增序列和sgRNA，第三和第四列为第二个sgRNA的扩增序列和sgRNA。
+# 但是对应的扩增序列应该做截短处理，grep测序数据的R1和R2文件，选取合适长度的扩增序列
+badreads: false

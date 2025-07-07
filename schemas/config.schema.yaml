@@ -1,0 +1,87 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+
+description: snakemake configuration file
+
+type: object
+
+properties:
+  workdir:
+    type: string
+  
+  prefix:
+    type: string
+  
+
+  DATA:
+    type: object
+    properties:
+      HiTom:
+        type: object
+        properties:
+          reads:
+            type: string
+          description:
+            type: string
+      Barcode:
+        type: object
+        properties:
+          fqs:
+            type: array
+            items:
+              type: string
+          description:
+            type: string
+          BarcodePrimer:
+            type: string
+
+
+  params:
+    type: object
+    properties:
+      primerF:
+        type: string
+      primerR:
+        type: string
+      length:
+        type: integer
+      total:
+        type: integer
+      minimum_dif:
+        type: integer
+      CRISPResso:
+        type: string
+      
+
+
+  module:
+    type: object
+    properties:
+      HiTom:
+        type: object
+        properties:
+          CRISPR:
+            type: boolean
+          ABE:
+            type: boolean
+          CBE:
+            type: boolean
+      Barcode:
+        type: object
+        properties:
+          CRISPR:
+            type: boolean
+          ABE:
+            type: boolean
+          CBE:
+            type: boolean
+
+  badreads:
+    type: boolean
+
+
+required:
+  - workdir
+  - prefix
+  - DATA
+  - params
+  - module
