@@ -106,6 +106,8 @@ After successful execution, you can create a self-contained interactive HTML rep
 This report can, e.g., be forwarded to your collaborators.
 An example (using some trivial test data) can be seen [here](https://cdn.rawgit.com/snakemake-workflows/rna-seq-star-deseq2/master/.test/report.html).
 
+---
+
 ## 二、FAQ
 ### 1. ERROR: Error: No alignments were found
 即没有测序reads比对到扩增序列，首先确认扩增序列总长度是否小于等于236 bp。
