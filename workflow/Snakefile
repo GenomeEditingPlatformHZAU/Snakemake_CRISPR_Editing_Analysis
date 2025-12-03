@@ -29,6 +29,16 @@ else:
 #======================================================
 
 configfile: "config/config.yaml"
+# 允许命令行覆盖嵌套结构
+if "Barcode_description" in config:
+    config["DATA"]["Barcode"]["description"] = config["Barcode_description"]
+
+if "Barcode_BarcodePrimer" in config:
+    config["DATA"]["Barcode"]["BarcodePrimer"] = config["Barcode_BarcodePrimer"]
+
+if "Barcode_fqs" in config:
+    config["DATA"]["Barcode"]["fqs"] = config["Barcode_fqs"]
+
 validate(config, schema="../schemas/config.schema.yaml")
 
 HiTom_samples = list(pd.read_table("Resources/HiTom/"+config["DATA"]["HiTom"]["description"], header=None, sep="\t", dtype=str).iloc[:,0]) if config["module"]["HiTom"]["CRISPR"] or config["module"]["HiTom"]["ABE"] else []
@@ -126,7 +136,7 @@ if config["badreads"]:
 
 ## check sgrna length
 def check_sgrna_lengths(file_path, system='Cas9'):
-    expected_length = 20 if system.lower() == 'cas9' else 23 if system.lower() == 'cpf1' else None
+    expected_length = 20 if system.lower() == 'cas9' else 23 if system.lower() == 'cpf1' else 30 if system.lower() == 'tnpb' else None
     if expected_length is None:
         print("Error: Unsupported system. Use 'Cas9' or 'Cpf1'.")
         sys.exit(1)
@@ -138,17 +148,19 @@ def check_sgrna_lengths(file_path, system='Cas9'):
                 continue
             parts = line.split('\t')
             if len(parts) < 3:
-                print("##"*60 + '\033[32m' + f"\nError on line {line_num}: Less than 3 columns." + '\033[0m' + " 😂\n" + "##"*60)
+                print("##"*60 + '\033[31m' + f"\nError on line {line_num}: Less than 3 columns." + '\033[0m' + " 😂\n" + "##"*60)
                 sys.exit(1)
             sgrnas = parts[2].split(',')
             for sgrna in sgrnas:
                 if len(sgrna.strip()) != expected_length:
-                    print("##"*60 + '\033[32m' + f"\nError on line {line_num}: sgRNA '{sgrna}' has length {len(sgrna.strip())}, expected {expected_length} for {system}." + '\033[0m' + " 😂\n" + "##"*60)
+                    print("##"*60 + '\033[31m' + f"\nError on line {line_num}: sgRNA '{sgrna}' has length {len(sgrna.strip())}, expected {expected_length} for {system}." + '\033[0m' + " 😂\n" + "##"*60)
                     sys.exit(1)
     print("##"*60 + '\033[32m' + "\nAll sgRNAs are valid in " + config["DATA"]["Barcode"]["description"] + "file." + '\033[0m' + " 😄\n" + "##"*60)
 
 if config["module"]["Barcode"]["cpf1"]:
     check_sgrna_lengths("Resources/Barcode/" + config["DATA"]["Barcode"]["description"], "Cpf1")
+elif config["module"]["Barcode"]["TnpB"]:
+    check_sgrna_lengths("Resources/Barcode/" + config["DATA"]["Barcode"]["description"], "TnpB")
 else:
     check_sgrna_lengths("Resources/Barcode/" + config["DATA"]["Barcode"]["description"], "Cas9")
 
@@ -203,7 +215,8 @@ rule all:
         "results/{}_Barcode_pair_Results/All_cpf1_samples_Barcode.txt".format(config["prefix"]) if config["module"]["Barcode"]["cpf1"] and not config["badreads"] else [],
         "results/{}_Barcode_pair_Results/All_ABE_samples_Barcode.txt".format(config["prefix"]) if config["module"]["Barcode"]["ABE"] and not config["badreads"] else [],
         "results/{}_Barcode_pair_Results/All_CBE_samples_Barcode.txt".format(config["prefix"]) if config["module"]["Barcode"]["CBE"] and not config["badreads"] else [],
-        "results/{}_Barcode_pair_Results/All_PE_samples_Barcode.txt".format(config["prefix"]) if config["module"]["Barcode"]["PE"] and not config["badreads"] else []
+        "results/{}_Barcode_pair_Results/All_PE_samples_Barcode.txt".format(config["prefix"]) if config["module"]["Barcode"]["PE"] and not config["badreads"] else [],
+        "results/{}_Barcode_pair_Results/All_TnpB_samples_Barcode.txt".format(config["prefix"]) if config["module"]["Barcode"]["TnpB"] and not config["badreads"] else []
             
 
 

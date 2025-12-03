@@ -3,7 +3,7 @@ workdir: "/public/home/zpxu/Bohou/CRISPR/Snakemake_CRISPR_Barcode_HiTom_Analysis
 # prefix of output (based on the file name in DATA.reads)
 # HiTom运行模式时对文件名称有严格要求[prefix], [reads/fqs] and [descriptionsa] 三个参数的名称前缀必须保持一致，且[prefix]去掉-Split, 而Barcode运行模式可不做要求
 # prefix: "SY13567-USR-26749"
-prefix: "XUfanshu"
+prefix: "L66"
 zaiti: "GhCas9"
 
 # All the data place in <Resources> directory.
@@ -21,8 +21,8 @@ DATA:
   Barcode:
     ### Data for barcodes sequences，存放于<Resources/Barcode>目录下
     fqs:
-      - zmx_1.fq.gz
-      - zmx_2.fq.gz
+      - L7_R1.fq.gz
+      - L7_R2.fq.gz
     ######################################################## Description File ####################################################
     # 所有序列都必须是大写字母, 不能有小写
     # 第一列为样品名称，第二列为扩增序列，第三列为sgRNA序列; [第四列为A亚基因组扩增序列, 第五列为A亚基因组序列特征, 第六列为D亚基因组扩增序列, 第七列为D亚基因组序列特征; 此处的序列特征即第二列扩增序列区间内能区分A和D亚基因组的一小段特异性序列; 若不想区分AD亚基因组, 而仅需要计算sgRNA特异的A或D亚基因组编辑, 则仅提供第四列为对应的特征序列即可;]
@@ -36,14 +36,14 @@ DATA:
     #         第三列: 需要编辑的序列, 即突变后序列, 不是原基因组序列 (长度不定, 序列包括RT(包含突变后位点)+PBS, 方向为5'->3', 该序列反向互补后可在第二列的模版中找到), PE载体上的RT+PBS反向互补序列
     #         第四列: pegRNA_spacer sgRNA (20bp+PAM形式的序列) (去掉PAM, 方向为5'->3'; 序列是模版序列的一部分), 与第二列的扩增序列在同一条链
     #         第五列: Nicking sgRNA序列, 方向同第四列, 可选 (当没有时只准备四列即可)
-    description: "zmx_description.txt"
+    description: "L66_description.txt"
     ######################################################## Primer File #########################################################
     # 如果Barcode对应的Primer是外部生成的，请指定文件名称，并存放于<Resources/Barcode>目录下，并且设置下面的 Barcode_Design: false
     # 该文件中的格式为：<样品名称-F\tab5'到3'方向引物序列>，且第一列样品名称必须和Barcode下的对应description指定文件的第一列样品名称完全相同
     # A1-F  gcttGCGTtggagtgagtacggtgtgcAAAGTATGCCCCTTATGGACCCT
     # A1-R  ctgtGCGTtgagttggatgctggatggTCCTCATCCCATTGTTCATTTCT
     # 如果有96个PCR孔则需96X2行
-    BarcodePrimer: "zmx_primer.txt"
+    BarcodePrimer: "L66_primer.txt"
 
 
 params:
@@ -84,9 +84,10 @@ module:
   Barcode:
     CRISPR: true
     cpf1: false
-    ABE: false
-    CBE: false
+    ABE: true
+    CBE: true
     PE: false
+    TnpB: false
 
 
 # 默认进行双端reads模式跑，如果扩增序列长度大于236 bp或双端reads模式跑效果不好，设置此参数为true。 

@@ -706,3 +706,96 @@ if config["module"]["Barcode"]["PE"]:
             '''
             cat {input} > {output}
             '''
+
+if config["module"]["Barcode"]["TnpB"]:
+    rule Barcode_28_CRISPResso2_TnpB_command:
+        input:
+            fq = "results/{prefix}_Barcode_pair_Results/Split_fastqs/{Barcode_sample}.fastq.gz",
+            description = "results/{prefix}_Barcode_pair_Results/description/{Barcode_sample}_description.txt"
+        output:
+            bash_command = "results/{prefix}_Barcode_pair_Results/Bash_Command/{Barcode_sample}_CRISPResso2_TnpB.sh"
+        threads: 1
+        params:
+            workdir = config["workdir"],
+            prefix = config["prefix"],
+            sampleid = "{Barcode_sample}",
+            outdir = lambda w, output: "/".join(os.path.dirname(output.bash_command).split("/")[0:2]),
+            extr = config["params"]["CRISPResso"]
+        shell:
+            '''
+            command="CRISPResso -r1 {params.workdir}/{input.fq} --output_folder {params.workdir}/{params.outdir}/TnpB {params.extr} "
+            sed "s|^|${{command}} |" {input.description} > {output.bash_command}
+            '''
+
+    rule Barcode_29_CRISPResso2_TnpB_command_subgenome:
+        input:
+            fq = "results/{prefix}_Barcode_pair_Results/Split_fastqs/{Barcode_sample}_subgenome_fastq",
+            description = "results/{prefix}_Barcode_pair_Results/description/{Barcode_sample}_description.txt"
+        output:
+            bash_command = "results/{prefix}_Barcode_pair_Results/Bash_Command/{Barcode_sample}_CRISPResso2_TnpB_subgenome.sh"
+        threads: 1
+        params:
+            workdir = config["workdir"],
+            prefix = config["prefix"],
+            sampleid = "{Barcode_sample}",
+            outdir = lambda w, output: "/".join(os.path.dirname(output.bash_command).split("/")[0:2]),
+            extr = config["params"]["CRISPResso"]
+        shell:
+            '''
+            for i in `ls {input.fq} | sort -V | xargs`
+            do
+            subgenome=`echo ${{i}} | sed "s/\\.fastq\\.gz//"`
+            command="CRISPResso -r1 {params.workdir}/{input.fq}/${{i}} --output_folder {params.workdir}/{params.outdir}/TnpB_subgenome {params.extr} "
+            cat {input.description} | awk -v a="${{subgenome}}" -v command="${{command}}" '$2==a {{print command,$0}}' >> {output.bash_command}
+            done
+            '''
+
+    rule Barcode_30_CRISPResso2_CRISPR:
+        input:
+            bash_command = "results/{prefix}_Barcode_pair_Results/Bash_Command/{Barcode_sample}_CRISPResso2_TnpB_subgenome.sh" if config["params"]["differentiation_subgenomes"] else "results/{prefix}_Barcode_pair_Results/Bash_Command/{Barcode_sample}_CRISPResso2_TnpB.sh",
+            description = "results/{prefix}_Barcode_pair_Results/description/{Barcode_sample}_description.txt"
+        output:
+            CRISPResso_png = report(directory("results/{prefix}_Barcode_pair_Results/TnpB_subgenome/CRISPResso_on_{Barcode_sample}_subgenomeA"), patterns=["9.Alleles_frequency_table_around_sgRNA_{name}.png", "3b.Insertion_deletion_substitutions_size_hist.png"], caption="../report/Barcode_CRISPR.rst", category="2-1. Barcode TnpB figure") if config["params"]["differentiation_subgenomes"] else report(directory("results/{prefix}_Barcode_pair_Results/TnpB/CRISPResso_on_{Barcode_sample}"), patterns=["9.Alleles_frequency_table_around_sgRNA_{name}.png", "3b.Insertion_deletion_substitutions_size_hist.png"], caption="../report/Barcode_CRISPR.rst", category="2-1. Barcode TnpB figure"),
+            CRISPResso = report("results/{{prefix}}_Barcode_pair_Results/TnpB_Alleles_frequency_subgenome/{{Barcode_sample}}_{{prefix}}_{}_All_Alleles_frequency.txt".format(config["zaiti"]), caption="../report/Barcode_CRISPR.rst", category="2-1. Barcode TnpB table") if config["params"]["differentiation_subgenomes"] else report("results/{{prefix}}_Barcode_pair_Results/TnpB_Alleles_frequency/{{Barcode_sample}}_{{prefix}}_{}_All_Alleles_frequency.txt".format(config["zaiti"]), caption="../report/Barcode_CRISPR.rst", category="2-1. Barcode TnpB table")
+        threads: 1
+        params:
+            workdir = config["workdir"],
+            prefix = config["prefix"],
+            sampleid = "{Barcode_sample}",
+            zaiti = config["zaiti"]
+        conda:
+            "../envs/Barcode_Hi-Tom.yaml"
+        log:
+            "logs/{prefix}/Barcode_CRISPResso2_TnpB_{prefix}-{Barcode_sample}.log"
+        shell:
+            '''
+            set +e
+            bash {input.bash_command} > {log} 2>&1
+            exitcode=$?
+            if [ $exitcode -ne 0 ]
+            then
+                touch {params.workdir}/{output.CRISPResso_png}/9.Alleles_frequency_table_around_sgRNA_ATCG.png >> {params.workdir}/{log} 2>&1
+                touch {params.workdir}/{output.CRISPResso_png}/3b.Insertion_deletion_substitutions_size_hist.png >> {params.workdir}/{log} 2>&1
+                touch {output.CRISPResso}
+                exit 0
+            else
+                echo "Success run {output.CRISPResso}" >> {params.workdir}/{log} 2>&1
+                rows=`cat {input.description} | cut -f 6 -d " " | wc -l`
+                for (( i=1; i<=$rows; i++ ))
+                do
+                    sgRNA=`cat {input.description} | cut -f 6 -d " " | sed -n ${{i}}p`
+                    cat {params.workdir}/{output.CRISPResso_png}/Alleles_frequency_table_around_sgRNA_${{sgRNA}}.txt | awk -F"\\t" 'BEGIN{{OFS="\\t"}} $3 ~ /False/ && $8 >= 0.2 {{print $0}}' | awk -F"\\t" -v a="{params.sampleid}" -v b="{params.prefix}" -v c="{params.zaiti}" -v d="sgRNA${{i}}" '{{SUM+=$8}}END{{print b"_"a"\\t"SUM"\\t"c"\\t"d}}' >> {output.CRISPResso}
+                done
+                exit $exitcode
+            fi
+            '''
+
+    rule Barcode_31_CRISPResso2_CRISPR_list:
+        input:
+            expand("results/{prefix}_Barcode_pair_Results/TnpB_Alleles_frequency_subgenome/{Barcode_sample}_{prefix}_{zaiti}_All_Alleles_frequency.txt", prefix = config["prefix"], Barcode_sample = Barcode_samples, zaiti = config["zaiti"]) if config["params"]["differentiation_subgenomes"] else expand("results/{prefix}_Barcode_pair_Results/TnpB_Alleles_frequency/{Barcode_sample}_{prefix}_{zaiti}_All_Alleles_frequency.txt", prefix = config["prefix"], Barcode_sample = Barcode_samples, zaiti = config["zaiti"])
+        output:
+            "results/{prefix}_Barcode_pair_Results/All_TnpB_samples_Barcode.txt"
+        shell:
+            '''
+            cat {input} > {output}
+            '''
